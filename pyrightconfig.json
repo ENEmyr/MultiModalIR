@@ -1,0 +1,10 @@
+{
+  "executionEnvironments": [
+    {
+      "root": "./"
+    }
+  ],
+  "reportAttributeAccessIssue": false,
+  "reportArgumentType": false,
+  "reportCallIssue": false
+}

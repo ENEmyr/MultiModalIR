@@ -151,4 +151,3 @@ def save_limb_images(label_map, predict_heatmaps, epoch, img_name, save_dir):
         output[0:46,  0:46] = gth
         output[50:96, 0: 46] = pre
         plt.imsave(epoch_save_dir + '/limb_' + name, output)
-

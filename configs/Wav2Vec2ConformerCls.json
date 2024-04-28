@@ -1,0 +1,26 @@
+{
+  "model": "Wav2Vec2ConformerCls",
+  "dataset_path": "./datasets/speech-handsign_commands/speech",
+  "weight_save_path": "./weights/",
+  "precision": "16-mixed",
+  "accelerator": "gpu",
+  "devices": 1,
+  "benchmark": true,
+  "fast_dev_run": false,
+  "log_frequency": 6,
+  "use_pretrained": true,
+  "freeze_pretrained": true,
+  "linear_in": 1024,
+  "dropout_rate": 0.1,
+  "num_classes": 8,
+  "epochs": 100,
+  "batch_size": 512,
+  "optimizer": "adam",
+  "lr": 1e-3,
+  "betas": [
+    0.9,
+    0.999
+  ],
+  "eps": 1e-8,
+  "weight_decay": 0
+}

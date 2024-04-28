@@ -1,5 +1,6 @@
 .ipynb_checkpoints/
 .virtual_documents/
+.idea/
 datasets/*.jpg
 datasets/*.tar
 datasets/*.zip
@@ -10,6 +11,8 @@ logs/
 weights/
 wandb/
 EXP*/
+test.py
+test.json
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

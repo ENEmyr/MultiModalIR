@@ -4,6 +4,7 @@ import torchaudio.transforms as T
 import os, pathlib, torchaudio, torch
 from torch.utils.data import Dataset
 from torch import nn
+from torch.nn.functional import one_hot
 from typing import Tuple, List, Dict, Union
 from utils.TextTransform import TextTransform
 
@@ -23,16 +24,16 @@ class MiniSpeechCommands(Dataset):
         class_to_idx = {c: idx for idx, c in enumerate(classes)}
         return classes, class_to_idx
 
-    def __load_audio(self, index: int) -> torch.Tensor:
+    def __load_audio(self, index: int) -> Tuple[torch.Tensor, int]:
         # metadata = torchaudio.info(self.paths[index])
-        wav, _ = torchaudio.load(self.paths[index])
-        return wav
+        wav, sr = torchaudio.load(self.paths[index])
+        return wav, sr
 
     def __len__(self) -> int:
         return len(self.paths)
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor | int]:
-        wav = self.__load_audio(index)
+        wav, sr = self.__load_audio(index)
         class_name = self.paths[index].parent.name
         class_idx = self.class_to_idx[class_name]
         label = None
@@ -40,10 +41,21 @@ class MiniSpeechCommands(Dataset):
             tt = TextTransform()
             label = torch.tensor(tt.text_to_int(class_name.upper()))
         else:
-            label = class_idx
+            label = one_hot(
+                torch.tensor([class_idx]), num_classes=len(self.class_to_idx)
+            )
         if self.transform is not None:
-            spec = self.transform(wav).squeeze(0).transpose(0, 1)
-            return spec, label
+            if (
+                str(self.transform.__class__)
+                == "<class 'transformers.models.wav2vec2.processing_wav2vec2.Wav2Vec2Processor'>"
+            ):
+                wav = self.transform(wav, sampling_rate=sr, return_tensors="pt")
+                assert len(wav) == 1  # assure to only return input_values
+                wav = wav.input_values
+                wav = wav.squeeze(0)
+            else:
+                wav = self.transform(wav).squeeze(0).transpose(0, 1)
+            return wav, label
         wav = self.__pad_seq(wav).squeeze(0)
         return wav, label
 

@@ -1,4 +1,5 @@
 import torch
+import platform
 from lightning.pytorch.utilities.types import STEP_OUTPUT, OptimizerLRScheduler
 from torch import optim, nn
 from torcheval.metrics import MulticlassAccuracy
@@ -12,6 +13,9 @@ class Wav2Vec2ConformerTrainer(L.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.model = Wav2Vec2ConformerCls(**config)
+        if platform.system() == "Linux":
+            # torch.compile requires Triton but currently Triton only supported Linux
+            self.model = torch.compile(self.model)
         self.criterion = nn.CrossEntropyLoss()
         self.accuracy = MulticlassAccuracy()
         self.config = config

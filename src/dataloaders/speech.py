@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 from torch import nn
 from torch.nn.functional import one_hot
 from typing import Tuple, List, Dict, Union
-from utils.TextTransform import TextTransform
+from src.utils.TextTransform import TextTransform
 
 
 class MiniSpeechCommands(Dataset):

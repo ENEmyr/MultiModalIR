@@ -4,7 +4,7 @@ import argparse
 import json
 import lightning as L
 from rich import console
-from utils.Callback import VerboseCallback
+from src.utils.Callback import VerboseCallback
 
 console = console.Console()
 parser = argparse.ArgumentParser()
@@ -32,8 +32,8 @@ TEST = "test"
 
 def Wav2VecConformerClsTrainer(trainer: L.Trainer, config: dict):
     from transformers import AutoProcessor
-    from utils.audio_dataloader import MiniSpeechCommands
-    from trainer.Wav2Vec2ConformerTrainer import Wav2Vec2ConformerTrainer
+    from src.dataloaders.speech import MiniSpeechCommands
+    from src.trainer.Wav2Vec2ConformerTrainer import Wav2Vec2ConformerTrainer
 
     transform = AutoProcessor.from_pretrained(
         "facebook/wav2vec2-conformer-rope-large-960h-ft", return_attention_mask=False
@@ -102,11 +102,11 @@ if __name__ == "__main__":
         devices=config["devices"],
         default_root_dir=config["weight_save_path"],
         benchmark=config["benchmark"],
-        # callbacks=VerboseCallback(),
         precision=config["precision"],
         max_epochs=config["epochs"],
         fast_dev_run=config["fast_dev_run"],
         log_every_n_steps=config["log_frequency"],
+        # callbacks=VerboseCallback(),
     )
 
     if config["model"] == "Wav2Vec2ConformerCls":

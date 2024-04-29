@@ -4,7 +4,7 @@ from lightning.pytorch.utilities.types import STEP_OUTPUT, OptimizerLRScheduler
 from torch import optim, nn
 from torcheval.metrics import MulticlassAccuracy
 import lightning as L
-from models.Wav2Vec2ConformerCls import Wav2Vec2ConformerCls
+from src.models.Wav2Vec2ConformerCls import Wav2Vec2ConformerCls
 
 
 # TODO: maybe need to explicit clarify what inside config for the sake of save_hyperparameters()

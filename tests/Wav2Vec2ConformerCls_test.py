@@ -2,7 +2,7 @@ import pytest
 import torch
 import torchaudio
 import os
-from models.Wav2Vec2ConformerCls import Wav2Vec2ConformerCls
+from src.models.Wav2Vec2ConformerCls import Wav2Vec2ConformerCls
 from transformers import AutoProcessor
 
 

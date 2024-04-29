@@ -1,0 +1,31 @@
+name: mmir
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pytorch
+  - pytorch-cuda=12.1
+  - torchaudio
+  - torchvision
+  - torchtriton
+  - lightning
+  - transformers
+  - rich
+  - librosa
+  - pytest
+  - pandas
+  - pydantic
+  - wandb
+  - jupyterlab
+  - tensorboard
+  - onnx
+  - ffmpeg
+  - pip:
+      - opencv-python
+      - rich-logger
+      - torcheval
+      - torchsummary
+prefix: /home/enemy/miniconda3/envs/mmir

@@ -6,6 +6,7 @@
   "accelerator": "gpu",
   "devices": 1,
   "benchmark": true,
+  "num_workers": 14,
   "fast_dev_run": false,
   "log_frequency": 6,
   "use_pretrained": true,

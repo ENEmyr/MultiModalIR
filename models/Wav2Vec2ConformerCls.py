@@ -36,5 +36,5 @@ class Wav2Vec2ConformerCls(nn.Module):
         x = self.dropout(x)
         logits = self.classifier(x)
         logits = logits.max(1).values
-        assert x.ndim == 2 and x.shape[2] == 8  # (batch, num_classes)
+        assert logits.ndim == 2 and logits.shape[1] == 8  # (batch, num_classes)
         return nn.functional.softmax(logits, 1)

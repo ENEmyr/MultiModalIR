@@ -3,8 +3,8 @@ import os
 import argparse
 import json
 import lightning as L
-from lightning.pytorch.callbacks import Callback
 from rich import console
+from utils.Callback import VerboseCallback
 
 console = console.Console()
 parser = argparse.ArgumentParser()
@@ -30,35 +30,7 @@ VAL = "val"
 TEST = "test"
 
 
-class VerboseCallback(Callback):
-    def on_train_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"):
-        console.log("\n= Start training =\n")
-
-    def on_train_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"):
-        console.log("\n= Stop training =\n")
-
-    def on_validation_start(
-        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
-    ) -> None:
-        console.log("\n= Start validating =\n")
-
-    def on_validation_end(
-        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
-    ) -> None:
-        console.log("\n= Stop validating =\n")
-
-    def on_test_start(
-        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
-    ) -> None:
-        console.log("\n= Start testing =\n")
-
-    def on_test_end(
-        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
-    ) -> None:
-        console.log("\n= Stop testing =\n")
-
-
-def Wav2VecConformerClsTrainer(trainer: "pl.Trainer", config: dict):
+def Wav2VecConformerClsTrainer(trainer: L.Trainer, config: dict):
     from transformers import AutoProcessor
     from utils.audio_dataloader import MiniSpeechCommands
     from trainer.Wav2Vec2ConformerTrainer import Wav2Vec2ConformerTrainer
@@ -93,7 +65,7 @@ def Wav2VecConformerClsTrainer(trainer: "pl.Trainer", config: dict):
             speech_datasets[x],
             batch_size=config["batch_size"],
             shuffle=(x == TRAIN),
-            num_workers=14,
+            num_workers=config["num_workers"],
             collate_fn=collate_fn,
         )  # os.cpu_count() = 24
         for x in [TRAIN, VAL, TEST]

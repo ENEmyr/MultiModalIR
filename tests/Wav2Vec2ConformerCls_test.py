@@ -2,14 +2,22 @@ import pytest
 import torch
 import torchaudio
 import os
-from src.models.Wav2Vec2ConformerCls import Wav2Vec2ConformerCls
+import json
+
+# from src.models.Wav2Vec2ConformerCls import Wav2Vec2ConformerCls
+from src.trainer.Wav2Vec2ConformerTrainer import Wav2Vec2ConformerTrainer
 from transformers import AutoProcessor
 
 
 @pytest.fixture
 def model():
-    m = Wav2Vec2ConformerCls(use_pretrained=True)
+    # m = Wav2Vec2ConformerCls(use_pretrained=True)
+    m = Wav2Vec2ConformerTrainer.load_from_checkpoint(
+        "./weights/lightning/<path_to_ckpt_folder>/<model.ckpt>"
+    )
+    m = m.wav2vec2conformercls
     m = m.to("cuda")
+    m.eval()
     return m  # Instantiate the model without pretrained weights
 
 
@@ -20,13 +28,15 @@ def mock_input_data():
 
 @pytest.fixture
 def dataset_path():
-    return "./datasets/speech-handsign_commands/speech/"
+    with open("./configs/Wav2Vec2ConformerCls.json", "r") as f:
+        config = json.read(f)
+    return config["dataset_path"]
 
 
 @pytest.fixture
-def get_label(dataset_path):
+def label_decoder(dataset_path):
     classes = sorted(
-        [entry.name for entry in list(os.scandir(os.path.join(dataset_path, "/val")))]
+        [entry.name for entry in list(os.scandir(os.path.join(dataset_path, "/test")))]
     )
     idx_to_class = {idx: c for idx, c in enumerate(classes)}
     return idx_to_class
@@ -50,6 +60,19 @@ def load_input_data(dataset_path, transform):
     return _load_input_data
 
 
+def test_forward_output_shape(model, mock_input_data):
+    # Output shape should match (batch_size, num_classes)
+    with torch.inference_mode():
+        output = model(mock_input_data)
+    assert output.shape == torch.Size([2, 8])
+
+
+def test_gradients_frozen(model):
+    # Check that gradients are frozen for pretrained parameters
+    for param in model.wav2vec2conformer.parameters():
+        assert not param.requires_grad
+
+
 @pytest.mark.parametrize(
     "file_path,label",
     [
@@ -58,25 +81,9 @@ def load_input_data(dataset_path, transform):
         ("/test/yes/ccf418a5_nohash_0.wav", "YES"),
     ],
 )
-def test_inference(model, get_label, load_input_data, file_path, label):
+def test_inference(model, label_decoder, load_input_data, file_path, label):
     input_data = load_input_data(file_path)
-    y_pred = model(input_data)
-    label_pred = get_label.get(y_pred.argmax(1).item())
-    assert label_pred == label
-
-
-def test_forward_output_shape(model, mock_input_data):
-    output = model(mock_input_data)
-    assert output.shape == torch.Size(
-        [2, 8]
-    )  # Output shape should match (batch_size, sequence_length, num_classes)
-
-
-def test_gradients_frozen(model):
-    for param in model.wav2vec2conformer.parameters():
-        assert (
-            not param.requires_grad
-        )  # Check that gradients are frozen for pretrained parameters
-
-
-# TODO: implement unit test for a run thought model with mini-batch of real data
+    with torch.inference_mode():
+        y_pred = model(input_data)
+    label_pred = label_decoder.get(y_pred.argmax(1).item())
+    assert label_pred.upper() == label

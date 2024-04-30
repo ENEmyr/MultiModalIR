@@ -52,13 +52,39 @@ def Wav2VecConformerClsTrainer(trainer: L.Trainer, config: dict):
     trainer.test(model=model, dataloaders=dataloaders.test, verbose=True)
 
 
+def VGG16Trainer(trainer: L.Trainer, config: dict):
+    from src.trainer.VGG16Trainer import VGG16Trainer
+    from src.dataloaders.MiniHandsignCommandsDataloader import (
+        MiniHandsignCommandsDataloader,
+    )
+
+    dataset_split_paths = {
+        x: os.path.join(config["dataset_path"], x) for x in [TRAIN, TEST, VAL]
+    }
+    dataloaders = MiniHandsignCommandsDataloader(
+        config=config, dataset_split_paths=dataset_split_paths, verbose=True
+    )
+
+    model = VGG16Trainer(config)
+    trainer.fit(
+        model=model,
+        train_dataloaders=dataloaders.train,
+        val_dataloaders=dataloaders.validate,
+    )
+    trainer.test(model=model, dataloaders=dataloaders.test, verbose=True)
+
+
 if __name__ == "__main__":
     args = parser.parse_args()
     assert os.path.isfile(args.conf_path) and args.conf_path.split(".")[-1] == "json"
     with open(args.conf_path, "r") as f:
         config = json.load(f)
 
-    assert config["model"] in ("Wav2Vec2ConformerCls", "Vgg16", "MultiFusion")
+    assert config["model"].upper() in (
+        "Wav2Vec2ConformerCls".upper(),
+        "Vgg16".upper(),
+        "MultiFusion".upper(),
+    )
     assert os.path.exists(config["dataset_path"])
     assert os.path.exists(config["weight_save_path"])
 
@@ -74,7 +100,9 @@ if __name__ == "__main__":
         # callbacks=VerboseCallback(),
     )
 
-    if config["model"] == "Wav2Vec2ConformerCls":
+    if config["model"].upper() == "Wav2Vec2ConformerCls".upper():
         Wav2VecConformerClsTrainer(trainer, config)
+    elif config["model"].upper() == "VGG16":
+        VGG16Trainer(trainer, config)
     else:
         pass

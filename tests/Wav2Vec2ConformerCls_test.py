@@ -1,3 +1,4 @@
+from typing import Tuple
 import pytest
 import torch
 import torchaudio
@@ -7,6 +8,8 @@ import json
 # from src.models.Wav2Vec2ConformerCls import Wav2Vec2ConformerCls
 from src.trainer.Wav2Vec2ConformerTrainer import Wav2Vec2ConformerTrainer
 from transformers import AutoProcessor
+from pathlib import Path
+from torch import Tensor
 
 
 @pytest.fixture
@@ -36,7 +39,7 @@ def dataset_path():
 @pytest.fixture
 def label_decoder(dataset_path):
     classes = sorted(
-        [entry.name for entry in list(os.scandir(os.path.join(dataset_path, "/test")))]
+        [entry.name for entry in list(os.scandir(os.path.join(dataset_path, "test")))]
     )
     idx_to_class = {idx: c for idx, c in enumerate(classes)}
     return idx_to_class
@@ -51,11 +54,12 @@ def transform():
 
 @pytest.fixture
 def load_input_data(dataset_path, transform):
-    def _load_input_data(file_path):
-        wav_path = os.path.join(dataset_path, file_path)
+    def _load_input_data(file_path) -> Tuple[Tensor, str]:
+        wav_path = Path(os.path.join(dataset_path, file_path))
+        label = wav_path.parent.name
         wav, sr = torchaudio.load(wav_path)
         wav = transform(wav.reshape(-1), sampling_rate=sr, return_tensors="pt")
-        return wav.input_values
+        return wav.input_values, label.upper()
 
     return _load_input_data
 
@@ -74,16 +78,16 @@ def test_gradients_frozen(model):
 
 
 @pytest.mark.parametrize(
-    "file_path,label",
+    "file_path",
     [
-        ("/test/stop/ced835d3_nohash_4.wav", "STOP"),
-        ("/test/go/ccb1266b_nohash_0.wav", "GO"),
-        ("/test/yes/ccf418a5_nohash_0.wav", "YES"),
+        "test/stop/ced835d3_nohash_4.wav",
+        "test/go/ccb1266b_nohash_0.wav",
+        "test/yes/ccf418a5_nohash_0.wav",
     ],
 )
-def test_inference(model, label_decoder, load_input_data, file_path, label):
-    input_data = load_input_data(file_path)
+def test_inference(model, label_decoder, load_input_data, file_path):
+    input_data, label = load_input_data(file_path)
     with torch.inference_mode():
-        y_pred = model(input_data)
+        y_pred = model(input_data.unsqueeze(0))
     label_pred = label_decoder.get(y_pred.argmax(1).item())
     assert label_pred.upper() == label

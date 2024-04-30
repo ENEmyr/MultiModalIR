@@ -1,4 +1,3 @@
-import torch
 import os
 import argparse
 import json
@@ -25,66 +24,32 @@ parser.add_argument(
     dest="use_wandb",
     default=False,
 )
+
 TRAIN = "train"
 VAL = "val"
 TEST = "test"
 
 
 def Wav2VecConformerClsTrainer(trainer: L.Trainer, config: dict):
-    from transformers import AutoProcessor
-    from src.dataloaders.speech import MiniSpeechCommands
     from src.trainer.Wav2Vec2ConformerTrainer import Wav2Vec2ConformerTrainer
-
-    transform = AutoProcessor.from_pretrained(
-        "facebook/wav2vec2-conformer-rope-large-960h-ft", return_attention_mask=False
+    from src.dataloaders.MiniSpeechCommandsDataloader import (
+        MiniSpeechCommandsDataloader,
     )
 
-    def collate_fn(batch):
-        inputs = []
-        labels = []
-        for input, label in batch:
-            inputs.append(input.T)
-            labels.append(label)
-        inputs = torch.nn.utils.rnn.pad_sequence(inputs, batch_first=True)
-        labels = torch.stack(labels)
-        return inputs.squeeze(), labels.squeeze().to(torch.float32)
-
-    data_transform = {TRAIN: transform, VAL: transform, TEST: transform}
-
-    speech_datasets = {
-        x: MiniSpeechCommands(
-            os.path.join(config["dataset_path"], x),
-            transform=data_transform[x],
-            text_transform=False,
-        )
-        for x in [TRAIN, VAL, TEST]
+    dataset_split_paths = {
+        x: os.path.join(config["dataset_path"], x) for x in [TRAIN, TEST, VAL]
     }
-
-    dataloaders = {
-        x: torch.utils.data.DataLoader(
-            speech_datasets[x],
-            batch_size=config["batch_size"],
-            shuffle=(x == TRAIN),
-            num_workers=config["num_workers"],
-            collate_fn=collate_fn,
-        )  # os.cpu_count() = 24
-        for x in [TRAIN, VAL, TEST]
-    }
-
-    dataset_sizes = {x: len(speech_datasets[x]) for x in [TRAIN, VAL, TEST]}
-    class_names = speech_datasets[TRAIN].classes
-
-    for x in [TRAIN, VAL, TEST]:
-        console.log("Loaded {} audios under {}".format(dataset_sizes[x], x))
-    console.log("Classes: ", class_names)
+    dataloaders = MiniSpeechCommandsDataloader(
+        config=config, dataset_split_paths=dataset_split_paths, verbose=True
+    )
 
     model = Wav2Vec2ConformerTrainer(config)
     trainer.fit(
         model=model,
-        train_dataloaders=dataloaders[TRAIN],
-        val_dataloaders=dataloaders[VAL],
+        train_dataloaders=dataloaders.train,
+        val_dataloaders=dataloaders.validate,
     )
-    trainer.test(model=model, dataloaders=dataloaders[TEST], verbose=True)
+    trainer.test(model=model, dataloaders=dataloaders.test, verbose=True)
 
 
 if __name__ == "__main__":

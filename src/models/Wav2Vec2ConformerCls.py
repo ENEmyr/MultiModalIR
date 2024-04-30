@@ -1,5 +1,4 @@
-from torch import nn
-from torch.functional import Tensor
+from torch import nn, Tensor
 from transformers import Wav2Vec2ConformerModel, Wav2Vec2ConformerConfig
 
 

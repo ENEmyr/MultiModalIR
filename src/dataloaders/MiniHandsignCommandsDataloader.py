@@ -1,5 +1,6 @@
 from typing import Any, Dict, Tuple
 
+from torch import eye
 from torchvision import transforms, datasets
 from torch import Tensor
 from torch.utils.data import DataLoader
@@ -24,7 +25,9 @@ class MiniHandsignCommandsDataloader(CustomDataloader):
             for k in dataset_split_paths.keys()
         }
         self.handsign_datasets = {
-            k.upper(): datasets.ImageFolder(v, transform=self.transform[k.upper()])
+            k.upper(): datasets.ImageFolder(
+                v, transform=self.transform[k.upper()], target_transform=self.__one_hot
+            )
             for k, v in self.dataset_split_paths.items()
         }
         self.dataloaders = {
@@ -56,6 +59,9 @@ class MiniHandsignCommandsDataloader(CustomDataloader):
 
     def _collate_fn(self, batch) -> Tuple[Tensor, Tensor]:
         return Tensor(), Tensor()
+
+    def __one_hot(self, x) -> Tensor:
+        return eye(self.config["num_classes"])[x]
 
     def _verbose(self) -> None:
         for k, v in self.dataset_sizes.items():

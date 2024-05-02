@@ -22,11 +22,12 @@ class VGG16Trainer(L.LightningModule):
 
     def training_step(self, batch, batch_idx) -> STEP_OUTPUT:
         X, y = batch
-        outputs = self.model(X)
-        _, y_preds = outputs.max(1)
-        loss = self.criterion(y_preds, y)
+        y_pred = self.model(X)
+        loss = self.criterion(y_pred, y)
+        y_pred_argmax = torch.argmax(y_pred, dim=1).to(torch.float32)
+        y_argmax = torch.argmax(y, dim=1).to(torch.float32)
 
-        self.accuracy.update(y_preds, y)
+        self.accuracy.update(y_pred_argmax, y_argmax)
         acc = self.accuracy.compute()
         # acc = torch.sum(y_preds == y.data).item() / (len(y) * 1.0)
 
@@ -44,11 +45,12 @@ class VGG16Trainer(L.LightningModule):
 
     def validation_step(self, batch, batch_idx) -> STEP_OUTPUT:
         X, y = batch
-        outputs = self.model(X)
-        _, y_preds = outputs.max(1)
-        loss = self.criterion(y_preds, y)
+        y_pred = self.model(X)
+        y_pred_argmax = torch.argmax(y_pred, dim=1).to(torch.float32)
+        y_argmax = torch.argmax(y, dim=1).to(torch.float32)
+        loss = self.criterion(y_pred, y)
 
-        self.accuracy.update(y_preds, y)
+        self.accuracy.update(y_pred_argmax, y_argmax)
         acc = self.accuracy.compute()
 
         self.log_dict(
@@ -64,14 +66,14 @@ class VGG16Trainer(L.LightningModule):
 
     def test_step(self, batch, batch_idx) -> STEP_OUTPUT:
         X, y = batch
-        outputs = self.model(X)
-        _, y_preds = outputs.max(1)
-        loss = self.criterion(y_preds, y)
+        y_pred = self.model(X)
+        y_pred_argmax = torch.argmax(y_pred, dim=1).to(torch.float32)
+        y_argmax = torch.argmax(y, dim=1).to(torch.float32)
+        loss = self.criterion(y_pred, y)
 
-        self.accuracy.update(y_preds, y)
+        self.accuracy.update(y_pred_argmax, y_argmax)
         acc = self.accuracy.compute()
 
-        self.log_tb_images((X, y, y_preds, batch_idx))
         self.log_dict(
             {"test_loss": loss, "test_accuracy": acc},
             on_step=True,
@@ -99,18 +101,3 @@ class VGG16Trainer(L.LightningModule):
                 momentum=self.config["momentum"],
             )
         return optimizer
-
-    def log_tb_images(self, viz_batch) -> None:
-        # Get tensorboard logger
-        tb_logger = None
-        for logger in self.trainer.loggers:
-            if isinstance(logger, pl_loggers.TensorBoardLogger):
-                tb_logger = logger.experiment
-                break
-        if tb_logger is None:
-            raise ValueError("TensorBoard Logger not found")
-        # Log the images (Give them different names)
-        for img_idx, (image, y_true, y_pred, batch_idx) in enumerate(zip(*viz_batch)):
-            tb_logger.add_image(f"Image/{batch_idx}_{img_idx}", image, 0)
-            tb_logger.add_image(f"GroundTruth/{batch_idx}_{img_idx}", y_true, 0)
-            tb_logger.add_image(f"Prediction/{batch_idx}_{img_idx}", y_pred, 0)

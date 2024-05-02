@@ -23,6 +23,8 @@ dependencies:
   - tensorboard
   - onnx
   - ffmpeg
+  - pynvim
+  - pyperclip
   - pip:
       - opencv-python
       - rich-logger

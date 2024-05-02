@@ -40,4 +40,4 @@ def test_dataloader_isinstance(dataloaders):
 def test_batch_shape(config, dataloaders):
     inputs, labels = next(iter(dataloaders.train))
     assert inputs.shape == randn(config["batch_size"], 3, 224, 224).shape
-    assert labels.shape == randn(config["batch_size"]).shape
+    assert labels.shape == randn(config["batch_size"], 8).shape

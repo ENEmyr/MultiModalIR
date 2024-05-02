@@ -2,6 +2,7 @@ import pytest
 import torch
 import os
 import json
+import platform
 
 from pathlib import Path
 from typing import Tuple
@@ -15,7 +16,7 @@ from src.trainer.VGG16Trainer import VGG16Trainer
 @pytest.fixture
 def model():
     m = VGG16Trainer.load_from_checkpoint(
-        "./weights/lightning/<path_to_ckpt_folder>/<model.ckpt>"
+        "./weights/Vgg16/version_0/checkpoints/epoch=99-step=400.ckpt"
     )
     m = m.model
     m = m.to("cuda")
@@ -65,6 +66,8 @@ def load_input_data(dataset_path, transform):
 
 def test_forward_output_shape(model, mock_input_data):
     # Output shape should match (batch_size, num_classes)
+    if platform.system() == "Linux":
+        model = torch.compile(model)
     with torch.inference_mode():
         output = model(mock_input_data)
     assert output.shape == torch.Size([2, 8])
@@ -80,8 +83,10 @@ def test_forward_output_shape(model, mock_input_data):
 )
 def test_inference(model, label_decoder, load_input_data, file_path):
     input_data, label = load_input_data(file_path)
+    if platform.system() == "Linux":
+        model = torch.compile(model)
     with torch.inference_mode():
-        output = model(input_data.unsqueeze(0))
-    _, y_pred = output.max(1)
-    label_pred = label_decoder.get(y_pred[0].item())
+        y_pred = model(input_data.unsqueeze(0))
+    y_pred_argmax = torch.argmax(y_pred, dim=1).to(torch.float32)
+    label_pred = label_decoder.get(y_pred_argmax[0].item())
     assert label_pred.upper() == label

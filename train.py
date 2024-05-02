@@ -4,6 +4,7 @@ import json
 import lightning as L
 from rich import console
 from src.utils.Callback import VerboseCallback
+from lightning.pytorch.loggers import TensorBoardLogger
 
 console = console.Console()
 parser = argparse.ArgumentParser()
@@ -86,8 +87,10 @@ if __name__ == "__main__":
         "MultiFusion".upper(),
     )
     assert os.path.exists(config["dataset_path"])
-    assert os.path.exists(config["weight_save_path"])
+    if not os.path.exists(config["weight_save_path"]):
+        os.makedirs(config["weight_save_path"])
 
+    tb_logger = TensorBoardLogger("./weights/", name=config["model"])
     trainer = L.Trainer(
         accelerator=config["accelerator"],
         devices=config["devices"],
@@ -97,6 +100,7 @@ if __name__ == "__main__":
         max_epochs=config["epochs"],
         fast_dev_run=config["fast_dev_run"],
         log_every_n_steps=config["log_frequency"],
+        logger=tb_logger,
         # callbacks=VerboseCallback(),
     )
 

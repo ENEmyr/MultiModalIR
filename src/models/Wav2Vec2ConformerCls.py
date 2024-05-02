@@ -8,7 +8,7 @@ class Wav2Vec2ConformerCls(nn.Module):
         use_pretrained: bool = True,
         freeze_pretrained: bool = True,
         num_classes: int = 8,
-        linear_in: int = 1024,
+        latent_dim: int = 1024,
         dropout_rate: float = 0.1,
         wav2vec2conformer_conf: Wav2Vec2ConformerConfig = None,
         **kwargs
@@ -24,14 +24,21 @@ class Wav2Vec2ConformerCls(nn.Module):
         else:
             self.wav2vec2conformer = Wav2Vec2ConformerModel(wav2vec2conformer_conf)
         self.dropout = nn.Dropout(dropout_rate)
+        self.SiLU = nn.SiLU()
+        self.latent_encoder = nn.Linear(
+            in_features=1024, out_features=latent_dim, bias=True
+        )
         self.classifier = nn.Linear(
-            in_features=linear_in, out_features=num_classes, bias=True
+            in_features=latent_dim, out_features=num_classes, bias=True
         )
 
     def forward(self, x) -> Tensor:
         x = self.wav2vec2conformer(input_values=x)
         x = x.last_hidden_state
         assert x.ndim == 3 and x.shape[2] == 1024
+        x = self.dropout(x)
+        x = self.latent_encoder(x)
+        x = self.SiLU(x)
         x = self.dropout(x)
         logits = self.classifier(x)
         logits = logits.max(1).values

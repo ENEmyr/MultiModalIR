@@ -19,9 +19,9 @@ torch.set_float32_matmul_precision("high")
 def model():
     # m = Wav2Vec2ConformerCls(use_pretrained=True)
     m = Wav2Vec2ConformerTrainer.load_from_checkpoint(
-        "./weights/Wav2Vec2ConformerCls/version_1/checkpoints/epoch=99-step=1200.ckpt"
+        "./weights/Wav2Vec2ConformerCls/latent_enc_SiLU/checkpoints/epoch=99-step=1200.ckpt"
     )
-    m = m.model
+    # m = m.model
     m = m.to("cuda")
     m.eval()
     return m  # Instantiate the model without pretrained weights
@@ -69,7 +69,7 @@ def load_input_data(dataset_path, transform):
 
 def test_gradients_frozen(model):
     # Check that gradients are frozen for pretrained parameters
-    for param in model.wav2vec2conformer.parameters():
+    for param in model.model.wav2vec2conformer.parameters():
         assert not param.requires_grad
 
 

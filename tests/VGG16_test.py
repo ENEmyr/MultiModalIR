@@ -16,9 +16,9 @@ from src.trainer.VGG16Trainer import VGG16Trainer
 @pytest.fixture
 def model():
     m = VGG16Trainer.load_from_checkpoint(
-        "./weights/Vgg16/version_0/checkpoints/epoch=99-step=400.ckpt"
+        "./logs/MultiModalFusion/d2m54pbm/checkpoints/epoch=5-val_loss=0.00-val_accuracy=1.00.ckpt"
     )
-    m = m.model
+    # m = m.model
     m = m.to("cuda")
     m.eval()
     return m  # Instantiate the model without pretrained weights

@@ -4,7 +4,8 @@ import json
 import lightning as L
 from rich import console
 from src.utils.Callback import VerboseCallback
-from lightning.pytorch.loggers import TensorBoardLogger
+from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
+from lightning.pytorch.callbacks import ModelCheckpoint
 
 console = console.Console()
 parser = argparse.ArgumentParser()
@@ -90,7 +91,18 @@ if __name__ == "__main__":
     if not os.path.exists(config["weight_save_path"]):
         os.makedirs(config["weight_save_path"])
 
-    tb_logger = TensorBoardLogger("./weights/", name=config["model"])
+    if args.use_wandb:
+        logger = WandbLogger(
+            name=config["model"], save_dir="./weights/", log_model="all"
+        )
+    else:
+        logger = TensorBoardLogger("./weights/", name=config["model"])
+    ckpt_callback = ModelCheckpoint(
+        monitor="val_accuracy",
+        filename="{epoch}-{val_loss:.2f}-{val_accuracy:.2f}",
+        auto_insert_metric_name=True,  # set this to False if metrics contain / otherise it will result in extra folders
+        mode="max",
+    )
     trainer = L.Trainer(
         accelerator=config["accelerator"],
         devices=config["devices"],
@@ -100,8 +112,8 @@ if __name__ == "__main__":
         max_epochs=config["epochs"],
         fast_dev_run=config["fast_dev_run"],
         log_every_n_steps=config["log_frequency"],
-        logger=tb_logger,
-        # callbacks=VerboseCallback(),
+        logger=logger,
+        callbacks=[ckpt_callback],
     )
 
     if config["model"].upper() == "Wav2Vec2ConformerCls".upper():

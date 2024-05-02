@@ -9,7 +9,8 @@ import lightning as L
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
+from lightning.pytorch.loggers.wandb import WandbLogger
+from lightning.pytorch.loggers.tensorboard import TensorBoardLogger
 from lightning.pytorch.utilities.types import STEP_OUTPUT, OptimizerLRScheduler
 from torch import nn, optim
 from torcheval.metrics import MulticlassAccuracy
@@ -27,7 +28,6 @@ class VGG16Trainer(L.LightningModule):
         self.criterion = nn.CrossEntropyLoss()
         self.accuracy = MulticlassAccuracy()
         self.config = config
-        self.use_wandb = True if isinstance(self.logger, WandbLogger) else False
         self.save_hyperparameters()
 
     def training_step(self, batch, batch_idx) -> STEP_OUTPUT:
@@ -38,6 +38,7 @@ class VGG16Trainer(L.LightningModule):
             on_epoch=True,
             prog_bar=True,
             logger=True,
+            batch_size=self.config["batch_size"],
         )
         return loss
 
@@ -49,6 +50,7 @@ class VGG16Trainer(L.LightningModule):
             on_epoch=True,
             prog_bar=True,
             logger=True,
+            batch_size=self.config["batch_size"],
         )
         return y_preds_argmax
 
@@ -60,6 +62,7 @@ class VGG16Trainer(L.LightningModule):
             on_epoch=True,
             prog_bar=True,
             logger=True,
+            batch_size=self.config["batch_size"],
         )
         return y_preds_argmax
 
@@ -126,16 +129,17 @@ class VGG16Trainer(L.LightningModule):
         ]
         figure_grid = self.__image_grid(titles, images)
         img_grid = torch.Tensor(self.__plot_to_image(figure_grid))
-        if self.use_wandb:
-            self.logger.log_image(
-                key="test_samples",
-                images=[img_grid],
-                caption=[f"Testing Samples at Batch {batch_idx}"],
-            )
-        else:
-            self.logger.experiment.add_image(
-                f"Testing Samples at Batch {batch_idx}", img_grid, 0
-            )
+        for logger in self.loggers:
+            if isinstance(logger, WandbLogger):
+                logger.log_image(
+                    key="test_samples",
+                    images=[img_grid],
+                    caption=[f"Testing Samples at Batch {batch_idx}"],
+                )
+            elif isinstance(logger, TensorBoardLogger):
+                logger.experiment.add_image(
+                    f"Testing Samples at Batch {batch_idx}", img_grid, self.global_step
+                )
         return super().on_test_batch_end(outputs, batch, batch_idx, dataloader_idx)
 
     def __plot_to_image(self, figure):

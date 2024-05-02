@@ -25,9 +25,11 @@ dependencies:
   - ffmpeg
   - pynvim
   - pyperclip
+  - seaborn
   - pip:
       - opencv-python
       - rich-logger
       - torcheval
       - torchsummary
+      - wave
 prefix: /home/enemy/miniconda3/envs/mmir

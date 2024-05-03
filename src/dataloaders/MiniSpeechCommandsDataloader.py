@@ -36,7 +36,7 @@ class MiniSpeechCommandsDataloader(CustomDataloader):
             k: torch.utils.data.DataLoader(
                 v,
                 batch_size=config["batch_size"],
-                shuffle=(k == "train"),
+                shuffle=(k != "val"),
                 num_workers=config["num_workers"],
                 collate_fn=self._collate_fn,
             )  # os.cpu_count() = 24

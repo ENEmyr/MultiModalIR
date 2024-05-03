@@ -1,14 +1,11 @@
-import io
 import os
 import platform
 import random
 from typing import Any
 
-import cv2
 import lightning as L
-import matplotlib.pyplot as plt
-import numpy as np
 import torch
+import sklearn.metrics
 from lightning.pytorch.loggers.wandb import WandbLogger
 from lightning.pytorch.loggers.tensorboard import TensorBoardLogger
 from lightning.pytorch.utilities.types import STEP_OUTPUT, OptimizerLRScheduler
@@ -16,6 +13,7 @@ from torch import nn, optim
 from torcheval.metrics import MulticlassAccuracy
 
 from src.models.VGG16 import VGG16
+from src.utils.Plot import image_grid, buf_figure_to_image, plot_confusion_matrix
 
 
 class VGG16Trainer(L.LightningModule):
@@ -95,6 +93,9 @@ class VGG16Trainer(L.LightningModule):
             )
         return optimizer
 
+    def forward(self, x):
+        return self.model(x)
+
     def on_train_epoch_end(self) -> None:
         self.accuracy.reset()
 
@@ -110,6 +111,7 @@ class VGG16Trainer(L.LightningModule):
         X, y = batch
         y_argmax = torch.argmax(y, dim=1).to(torch.int)
         y_preds_argmax = outputs.to(torch.int)
+        cm = sklearn.metrics.confusion_matrix(y_argmax.cpu(), y_preds_argmax.cpu())
         labels_decode = sorted(
             [
                 entry.name
@@ -127,8 +129,10 @@ class VGG16Trainer(L.LightningModule):
             (X[i].cpu().numpy() * 255).transpose(1, 2, 0).astype(int)
             for i in sample_idxs
         ]
-        figure_grid = self.__image_grid(titles, images)
-        img_grid = torch.Tensor(self.__plot_to_image(figure_grid))
+        figure_grid = image_grid(titles, images)
+        figure_cm = plot_confusion_matrix(cm, labels_decode)
+        img_grid = torch.Tensor(buf_figure_to_image(figure_grid))
+        img_cm = torch.Tensor(buf_figure_to_image(figure_cm))
         for logger in self.loggers:
             if isinstance(logger, WandbLogger):
                 logger.log_image(
@@ -136,38 +140,18 @@ class VGG16Trainer(L.LightningModule):
                     images=[img_grid],
                     caption=[f"Testing Samples at Batch {batch_idx}"],
                 )
+                logger.log_image(
+                    key="confusion_matrix",
+                    images=[img_cm],
+                    caption=["Confusion Matrix"],
+                )
             elif isinstance(logger, TensorBoardLogger):
-                logger.experiment.add_image(
-                    f"Testing Samples at Batch {batch_idx}", img_grid, self.global_step
+                logger.experiment.add_figure(
+                    f"Testing Samples at Batch {batch_idx}",
+                    figure_grid,
+                    self.global_step,
+                )
+                logger.experiment.add_figure(
+                    f"Confusion Matrix", figure_cm, self.global_step
                 )
         return super().on_test_batch_end(outputs, batch, batch_idx, dataloader_idx)
-
-    def __plot_to_image(self, figure):
-        """Converts the matplotlib plot specified by 'figure' to image and
-        returns it. The supplied figure is closed and inaccessible after this call."""
-        # Save the plot to a PNG in memory.
-        buf = io.BytesIO()
-        figure.savefig(buf, format="png", dpi=180)
-        plt.close(figure)
-        buf.seek(0)
-        img_arr = np.frombuffer(buf.getvalue(), dtype=np.uint8)
-        buf.close()
-        img = cv2.imdecode(img_arr, 1)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = img.transpose(2, 0, 1)
-
-        return img
-
-    def __image_grid(self, titles: list, images: list):
-        """Return a 5x5 grid of images as a matplotlib figure."""
-        # Create a figure to contain the plot.
-        figure = plt.figure(figsize=(10, 10))
-        for i in range(25):
-            # Start next subplot.
-            plt.subplot(5, 5, i + 1, title=titles[i])
-            plt.xticks([])
-            plt.yticks([])
-            plt.grid(False)
-            plt.imshow(images[i])
-
-        return figure

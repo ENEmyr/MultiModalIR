@@ -20,7 +20,7 @@ class VGG16Trainer(L.LightningModule):
     def __init__(self, config: dict) -> None:
         super().__init__()
         self.model = VGG16(**config)
-        if platform.system() == "Linux":
+        if platform.system() == "Linux" and config["compile_model"]:
             # torch.compile requires Triton but currently Triton only supported Linux
             self.model = torch.compile(self.model)
         self.criterion = nn.CrossEntropyLoss()

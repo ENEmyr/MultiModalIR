@@ -4,6 +4,7 @@
   "weight_save_path": "./weights/wav2vec2confoermercls",
   "precision": "16-mixed",
   "accelerator": "gpu",
+  "compile_model": false,
   "devices": 1,
   "benchmark": true,
   "num_workers": 14,

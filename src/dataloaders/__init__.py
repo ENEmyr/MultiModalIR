@@ -28,7 +28,7 @@ class CustomDataloader(ABC):
         pass
 
     @abstractmethod
-    def _collate_fn(self, batch) -> Tuple[Tensor, Tensor]:
+    def _collate_fn(self, batch) -> Tuple:
         pass
 
     @abstractmethod

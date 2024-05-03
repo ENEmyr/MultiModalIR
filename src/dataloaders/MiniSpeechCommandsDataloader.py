@@ -59,15 +59,17 @@ class MiniSpeechCommandsDataloader(CustomDataloader):
         key = "VAL" if "VAL" in self.dataloaders.keys() else "VALIDATE"
         return self.dataloaders[key]
 
-    def _collate_fn(self, batch) -> Tuple[Tensor, Tensor]:
+    def _collate_fn(self, batch) -> Tuple[Tensor, Tensor, list]:
         inputs = []
         labels = []
-        for input, label in batch:
+        file_paths = []
+        for input, label, file_path in batch:
             inputs.append(input.T)
             labels.append(label)
+            file_paths.append(file_path)
         inputs = torch.nn.utils.rnn.pad_sequence(inputs, batch_first=True)
         labels = torch.stack(labels)
-        return inputs.squeeze(), labels.squeeze().to(torch.float32)
+        return inputs.squeeze(), labels.squeeze().to(torch.float32), file_paths
 
     def _verbose(self) -> None:
         for k, v in self.dataset_sizes.items():

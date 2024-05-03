@@ -24,16 +24,19 @@ class MiniSpeechCommands(Dataset):
         class_to_idx = {c: idx for idx, c in enumerate(classes)}
         return classes, class_to_idx
 
-    def __load_audio(self, index: int) -> Tuple[torch.Tensor, int]:
+    def __load_audio(self, index: int) -> Tuple[torch.Tensor, int, pathlib.Path]:
         # metadata = torchaudio.info(self.paths[index])
-        wav, sr = torchaudio.load(self.paths[index])
-        return wav, sr
+        file_path = self.paths[index]
+        wav, sr = torchaudio.load(file_path)
+        return wav, sr, file_path
 
     def __len__(self) -> int:
         return len(self.paths)
 
-    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor | int]:
-        wav, sr = self.__load_audio(index)
+    def __getitem__(
+        self, index: int
+    ) -> Tuple[torch.Tensor, torch.Tensor | int, pathlib.Path]:
+        wav, sr, file_path = self.__load_audio(index)
         class_name = self.paths[index].parent.name
         class_idx = self.class_to_idx[class_name]
         label = None
@@ -55,9 +58,9 @@ class MiniSpeechCommands(Dataset):
                 wav = wav.squeeze(0)
             else:
                 wav = self.transform(wav).squeeze(0).transpose(0, 1)
-            return wav, label
+            return wav, label, file_path
         wav = self.__pad_seq(wav).squeeze(0)
-        return wav, label
+        return wav, label, file_path
 
     def __pad_seq(self, seq: torch.Tensor) -> torch.Tensor:
         num_frames = seq.shape[1]

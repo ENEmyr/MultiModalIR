@@ -2,7 +2,6 @@ import pytest
 import torch
 import os
 import json
-import platform
 
 from pathlib import Path
 from typing import Tuple
@@ -10,36 +9,36 @@ from PIL import Image
 from torch import Tensor
 from torchvision import transforms
 
-from src.trainer.VGG16Trainer import VGG16Trainer
+from src.models.VGG16 import VGG16
 
 
 @pytest.fixture
-def model():
-    m = VGG16Trainer.load_from_checkpoint(
-        "./logs/MultiModalFusion/d2m54pbm/checkpoints/epoch=5-val_loss=0.00-val_accuracy=1.00.ckpt"
-    )
-    # m = m.model
-    m = m.to("cuda")
+def model(config):
+    m = VGG16(**config)
+    m.load_state_dict(torch.load("./weights/VGG16.pt"))
     m.eval()
     return m  # Instantiate the model without pretrained weights
 
 
-@pytest.fixture
-def mock_input_data():
-    return torch.randn(2, 3, 224, 224).to("cuda")
-
-
-@pytest.fixture
-def dataset_path():
+@pytest.fixture()
+def config():
     with open("./configs/VGG16.json", "r") as f:
         config = json.load(f)
-    return config["dataset_path"]
+    return config
 
 
 @pytest.fixture
-def label_decoder(dataset_path):
+def mock_input_data():
+    return torch.randn(2, 3, 224, 224)
+
+
+@pytest.fixture
+def label_decoder(config):
     classes = sorted(
-        [entry.name for entry in list(os.scandir(os.path.join(dataset_path, "test")))]
+        [
+            entry.name
+            for entry in list(os.scandir(os.path.join(config["dataset_path"], "test")))
+        ]
     )
     idx_to_class = {idx: c for idx, c in enumerate(classes)}
     return idx_to_class
@@ -51,23 +50,21 @@ def transform():
 
 
 @pytest.fixture
-def load_input_data(dataset_path, transform):
+def load_input_data(config, transform):
     def _load_input_data(file_path) -> Tuple[Tensor, str]:
-        img_path = Path(os.path.join(dataset_path, file_path))
+        img_path = Path(os.path.join(config["dataset_path"], file_path))
         label = img_path.parent.name
         with open(img_path, "rb") as f:
             img = Image.open(f)
             img.load()
         img = img.convert("RGB")
-        return transform(img).to("cuda"), label.upper()
+        return transform(img), label.upper()
 
     return _load_input_data
 
 
 def test_forward_output_shape(model, mock_input_data):
     # Output shape should match (batch_size, num_classes)
-    if platform.system() == "Linux":
-        model = torch.compile(model)
     with torch.inference_mode():
         output = model(mock_input_data)
     assert output.shape == torch.Size([2, 8])
@@ -83,8 +80,6 @@ def test_forward_output_shape(model, mock_input_data):
 )
 def test_inference(model, label_decoder, load_input_data, file_path):
     input_data, label = load_input_data(file_path)
-    if platform.system() == "Linux":
-        model = torch.compile(model)
     with torch.inference_mode():
         y_pred = model(input_data.unsqueeze(0))
     y_pred_argmax = torch.argmax(y_pred, dim=1).to(torch.float32)

@@ -20,6 +20,7 @@ datasets/speech-handsign_commands_balanced
 datasets/speech-handsign_commands_balanced2
 datasets/speech-handsign_commands_vectors
 datasets/speech-handsign_commands_vectors_no_split
+datasets/flickr8k_audio_test/
 runs/
 logs/
 bak/

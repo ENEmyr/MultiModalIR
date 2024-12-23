@@ -1,7 +1,7 @@
 import os
 import torch
+import pathlib
 from torch.utils.data import Dataset
-from torch.nn.functional import pad
 from src.utils import pad_image_embeddings
 
 
@@ -14,9 +14,11 @@ class Flickr8KWithAudioVector(Dataset):
         """
         self.image_dir = image_dir
         self.audio_dir = audio_dir
-        self.image_files = sorted(os.listdir(image_dir))
-        self.audio_files = sorted(os.listdir(audio_dir))
+        self.image_files = sorted(list(pathlib.Path(image_dir).glob("*.pt")))
+        self.audio_files = sorted(list(pathlib.Path(audio_dir).glob("*.pt")))
         self.padding = padding
+        self.id2Filename = [x.stem for x in self.image_files]
+        self.filename2Id = {x: i for i, x in enumerate(self.id2Filename)}
         assert len(self.image_files) == len(
             self.audio_files
         ), "Number of images and audio files must match."
@@ -26,8 +28,8 @@ class Flickr8KWithAudioVector(Dataset):
         return len(self.image_files)
 
     def __getitem__(self, idx):
-        image = torch.load(os.path.join(self.image_dir, self.image_files[idx]))
-        audio = torch.load(os.path.join(self.audio_dir, self.audio_files[idx]))
+        image = torch.load(self.image_files[idx])
+        audio = torch.load(self.audio_files[idx])
         batch_size = image.size(0)
         image_embed_dim = image.size(1)
         audio_embed_dim = audio.size(1)
@@ -51,5 +53,6 @@ class Flickr8KWithAudioVector(Dataset):
             )
             output["image"]["embed"] = padd_image
             output["image"]["attention_mask"] = image_attention_mask
+            output["id"] = self.filename2Id[self.image_files[idx].stem]
 
         return output

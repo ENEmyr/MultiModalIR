@@ -1,0 +1,66 @@
+---
+model: MultiModalFusion
+weight_save_path: "./weights/multimodalfusion"
+precision: 16-mixed
+accelerator: gpu
+compile_model: false
+devices: 1
+benchmark: true
+num_workers: 14
+fast_dev_run: false
+log_frequency: 6
+use_pretrained: true
+early_stopping:
+  monitor: "val_loss"
+  mode: "min"
+  patience: 10
+recall_at:
+  - 1
+  - 5
+  - 10
+
+epochs: 100
+optimizer: Adam
+lr: 5.0e-05
+betas:
+  - 0.9
+  - 0.999
+eps: 1.0e-08
+weight_decay: 0
+lr_scheduler: ExponentialLR
+gamma: 0.9
+
+dataloader_params:
+  batch_size: 256
+  # dataset_split_ratio:
+  #   train: 0.8
+  #   val: 0.1
+  #   test: 0.1
+  dataset_params:
+    dataset_path: "./datasets/speech-handsign_commands_vectors/"
+    # image_dir: "./datasets/flickr8k_with_audio_vectors/images"
+    # audio_dir: "./datasets/flickr8k_with_audio_vectors/wavs"
+    padding: zero
+  verbose: true
+
+# loss_params:
+#   loss_type: NormSoftmax
+#   temperature: 0.05
+#   ia_weight: 1
+
+model_params:
+  image_embed_dim: 1024
+  audio_embed_dim: 1024
+  projection_dim: 2048
+  image_max_tokens:
+  audio_max_tokens:
+  token_projection: gated
+  projection: gated
+  individual_projections: true
+  use_positional_emb: false
+  fusion_params:
+    embed_dim: 1024
+    use_cls_token: false
+    depth: 1
+    num_heads: 64
+    mlp_ratio: 1

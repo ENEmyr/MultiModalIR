@@ -1,11 +1,16 @@
-import os
 import argparse
 import json
+import os
+import yaml
+from datetime import datetime
+
 import lightning as L
-from rich import console, pretty, traceback
-from src.utils.Callback import VerboseCallback
-from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks.early_stopping import EarlyStopping
+from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
+from rich import console, pretty, traceback
+
+from src.utils.Callback import VerboseCallback
 
 console = console.Console()
 pretty.install()
@@ -78,18 +83,71 @@ def VGG16Trainer(trainer: L.Trainer, config: dict):
     trainer.test(model=model, dataloaders=dataloaders.test, verbose=True)
 
 
+def MultiModalFusionTrainer(trainer: L.Trainer, config: dict):
+    from src.trainer.MultiModalFusionTrainer import MultiModalFusionTrainer
+
+    # from src.dataloaders.Flickr8KWithAudioVectorDataloader import (
+    #     Flickr8KWithAudioVectorDataloader,
+    # )
+
+    # dataloaders = Flickr8KWithAudioVectorDataloader(**config["dataloader_params"])
+    from src.dataloaders.MiniSpeechHandsignVectorDataloader import (
+        MiniSpeechHandsignVectorDataloader,
+    )
+
+    dataset_split_paths = {
+        x: os.path.join(
+            config["dataloader_params"]["dataset_params"]["dataset_path"], x
+        )
+        for x in [TRAIN, TEST, VAL]
+    }
+    dataloaders = MiniSpeechHandsignVectorDataloader(
+        config=config,
+        dataset_split_paths=dataset_split_paths,
+        padding=config["dataloader_params"]["dataset_params"]["padding"],
+        verbose=True,
+    )
+
+    model = MultiModalFusionTrainer(config)
+    trainer.fit(
+        model=model,
+        train_dataloaders=dataloaders.train,
+        val_dataloaders=dataloaders.validate,
+    )
+    trainer.test(model=model, dataloaders=dataloaders.test, verbose=True)
+
+
 if __name__ == "__main__":
     args = parser.parse_args()
-    assert os.path.isfile(args.conf_path) and args.conf_path.split(".")[-1] == "json"
-    with open(args.conf_path, "r") as f:
-        config = json.load(f)
+    assert os.path.isfile(args.conf_path) and args.conf_path.split(".")[-1] in [
+        "json",
+        "yaml",
+    ]
+    if args.conf_path.split(".")[-1] == "yaml":
+        with open(args.conf_path, "r") as f:
+            config = yaml.safe_load(f)
+    else:
+        with open(args.conf_path, "r") as f:
+            config = json.load(f)
 
     assert config["model"].upper() in (
         "Wav2Vec2ConformerCls".upper(),
         "Vgg16".upper(),
-        "MultiFusion".upper(),
+        "MultiModalFusion".upper(),
     )
-    assert os.path.exists(config["dataset_path"])
+
+    if "dataset_path" in config["dataloader_params"]["dataset_params"]:
+        assert os.path.exists(
+            config["dataloader_params"]["dataset_params"]["dataset_path"]
+        )
+    elif (
+        "image_dir" in config["dataloader_params"]["dataset_params"]
+        and "audio_dir" in config["dataloader_params"]["dataset_params"]
+    ):
+        assert os.path.exists(
+            config["dataloader_params"]["dataset_params"]["image_dir"]
+        ) and os.path.isdir(config["dataloader_params"]["dataset_params"]["audio_dir"])
+
     if not os.path.exists(config["weight_save_path"]):
         os.makedirs(config["weight_save_path"])
 
@@ -98,19 +156,27 @@ if __name__ == "__main__":
     if args.use_wandb:
         wandb_logger = WandbLogger(
             project="MultiModalFusion",
-            name=config["model"],
+            name=config["model"] + "_" + datetime.now().strftime("%Y-%m-%d_%H-%M"),
             save_dir="./logs/",
             log_model=False,  # change to "all" to logged durring training, True to logged at the end of training
         )
         loggers.append(wandb_logger)
     loggers.append(tb_logger)
 
-    ckpt_callback = ModelCheckpoint(
-        monitor="val_accuracy",
-        filename="{epoch}-{val_loss:.2f}-{val_accuracy:.2f}",
-        auto_insert_metric_name=True,  # set this to False if metrics contain / otherise it will result in extra folders
-        mode="max",
-    )
+    if config["model"].upper() in ["MultiModalFusion".upper()]:
+        ckpt_callback = ModelCheckpoint(
+            monitor="val_mean_similarity",
+            filename="{epoch}-{val_loss:.2f}-{val_mean_similarity:.2f}",
+            auto_insert_metric_name=True,  # set this to False if metrics contain / otherise it will result in extra folders
+            mode="max",
+        )
+    else:
+        ckpt_callback = ModelCheckpoint(
+            monitor="val_accuracy",
+            filename="{epoch}-{val_loss:.2f}-{val_accuracy:.2f}",
+            auto_insert_metric_name=True,  # set this to False if metrics contain / otherise it will result in extra folders
+            mode="max",
+        )
     trainer = L.Trainer(
         accelerator=config["accelerator"],
         devices=config["devices"],
@@ -121,12 +187,17 @@ if __name__ == "__main__":
         fast_dev_run=config["fast_dev_run"],
         log_every_n_steps=config["log_frequency"],
         logger=loggers,
-        callbacks=[ckpt_callback],
+        callbacks=[
+            ckpt_callback,
+            EarlyStopping(**config["early_stopping"]),
+        ],
     )
 
     if config["model"].upper() == "Wav2Vec2ConformerCls".upper():
         Wav2VecConformerClsTrainer(trainer, config)
     elif config["model"].upper() == "VGG16":
         VGG16Trainer(trainer, config)
+    elif config["model"].upper() == "MultiModalFusion".upper():
+        MultiModalFusionTrainer(trainer, config)
     else:
-        pass
+        raise NotImplementedError(f"{config['model']} model not implemented")

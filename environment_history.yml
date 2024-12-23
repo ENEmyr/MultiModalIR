@@ -1,35 +1,27 @@
 name: mmir
 channels:
-  - pytorch
-  - nvidia
-  - conda-forge
   - defaults
 dependencies:
+  - ffmpeg
+  - jupyterlab
+  - librosa
+  - lightning
+  - onnx
+  - pandas
+  - pip
+  - pydantic
+  - pytest
   - python=3.11
   - pytorch
   - pytorch-cuda=12.1
-  - torchaudio
-  - torchvision
-  - torchtriton
-  - lightning
-  - transformers
   - rich
-  - librosa
-  - pytest
-  - pandas
-  - pydantic
-  - wandb
-  - jupyterlab
   - tensorboard
-  - onnx
-  - ffmpeg
+  - torchaudio
+  - torchtriton
+  - torchvision
+  - transformers
+  - wandb
   - pynvim
   - pyperclip
   - seaborn
-  - pip:
-      - opencv-python
-      - rich-logger
-      - torcheval
-      - torchsummary
-      - wave
 prefix: /home/enemy/miniconda3/envs/mmir
